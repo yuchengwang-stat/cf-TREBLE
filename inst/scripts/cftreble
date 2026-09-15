@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# cf-TREBLE pipeline driver.
+#
+#   cftreble <stage> [--config FILE] [stage args]      run a stage here and now
+#   cftreble submit  [--config FILE] [--from STAGE]    submit the whole chain to SLURM
+#   cftreble smoke   [--rows N] [--beta FILE]          tiny end-to-end run, no SLURM
+#   cftreble check   [--config FILE] [--deep]          validate the inputs first
+#   cftreble example [--out DIR]                       write a runnable miniature dataset
+#   cftreble demo    [--out DIR]                       that dataset, run end to end
+#   cftreble status  [--config FILE]                   what has finished so far
+#   cftreble selftest [--cpgs N] [--tree-lists DIR]    synthetic end-to-end check
+#   cftreble validate [--cpgs N] [--plasma-depth D]    accuracy vs known truth
+#
+# Stages: tree | likelihood | prior | markers | signature | subject | deconvolve
+#
+# After installing, find this script with
+#   Rscript -e 'cat(system.file("scripts", "cftreble", package = "cfTREBLE"))'
+set -euo pipefail
+
+# Works from an installed package or from a git checkout.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CFT_HOME="$(cd "$HERE/.." && pwd)"          # .../inst  (installed: the package dir)
+[[ -d "$CFT_HOME/config" ]] || CFT_HOME="$(cd "$HERE/../.." && pwd)/inst"
+export CFT_HOME
+CONFIG="$CFT_HOME/config/default.yaml"
+
+# pull --config out of the argument list without disturbing the rest
+ARGS=(); while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --config) CONFIG="$2"; shift 2 ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+set -- "${ARGS[@]:-}"
+CMD="${1:-help}"; shift || true
+
+# Evaluate an R expression against the loaded config and print the result.  The
+# expression is interpolated directly rather than through parse(text='...'), whose
+# quotes collide with any the expression itself contains.
+cfg () { Rscript -e "library(cfTREBLE); cfg <- load_config('$CONFIG'); cat($1)" ; }
+
+run_stage () {
+  local s="$1"; shift
+  Rscript "$CFT_HOME/scripts/stage_${s}.R" --config "$CONFIG" "$@"
+}
+
+sbatch_stage () {                       # $1 stage, $2 array spec ("" = none), rest = deps/args
+  local stage="$1"; local array="$2"; shift 2
+  local acct part ntasks time work
+  acct=$(cfg "cfg\$slurm\$account");  part=$(cfg "cfg\$slurm\$partition")
+  ntasks=$(cfg "cfg\$slurm\$ntasks"); time=$(cfg "cfg\$slurm\$time")
+  work=$(cfg "cfg\$work"); mkdir -p "$work/logs"
+  local opts=(-A "$acct" -p "$part" -N 1 --ntasks-per-node="$ntasks" -t "$time"
+              -J "cft_$stage" -o "$work/logs/${stage}_%A_%a.out" -e "$work/logs/${stage}_%A_%a.err")
+  [[ -n "$array" ]] && opts+=(--array="$array")
+  sbatch --parsable "${opts[@]}" "$@" "$CFT_HOME/slurm/run_stage.sbatch" "$stage" "$CONFIG"
+}
+
+case "$CMD" in
+  tree|likelihood|prior|markers|signature|subject|deconvolve|check) run_stage "$CMD" "$@" ;;
+
+  example)
+    exec Rscript "$CFT_HOME/scripts/stage_example.R" "$@" ;;
+
+  submit)
+    CHUNKS=$(cfg "paste(range(unlist(cfg\$data\$chunks)), collapse='-')")
+    echo "chunk array: $CHUNKS"
+    run_stage tree                                    # cheap, do it inline
+    j_lik=$(sbatch_stage likelihood "$CHUNKS");                 echo "likelihood -> $j_lik"
+    j_pri=$(sbatch_stage prior      ""   --dependency=afterok:$j_lik); echo "prior      -> $j_pri"
+    j_mrk=$(sbatch_stage markers "$CHUNKS" --dependency=afterok:$j_pri); echo "markers    -> $j_mrk"
+    j_sig=$(sbatch_stage signature  ""   --dependency=afterok:$j_mrk); echo "signature  -> $j_sig"
+    # Stage 6 only runs if the config asks for a subject-specific signature.
+    if [[ "$(cfg "isTRUE(cfg\$markers\$subject_specific)")" == "TRUE" ]]; then
+      j_sub=$(sbatch_stage subject "$CHUNKS" --dependency=afterok:$j_sig); echo "subject    -> $j_sub"
+    else
+      echo "subject    -> skipped (markers.subject_specific is false)"
+    fi
+    echo "submitted. squeue -u \$USER to watch."
+    echo "deconvolve is not chained: run it once you have samples, with --beta."
+    ;;
+
+  smoke)
+    ROWS=2000; BETA=""
+    while [[ $# -gt 0 ]]; do case "$1" in
+      --rows) ROWS="$2"; shift 2;;
+      --beta) BETA="$2"; shift 2;;
+      *) shift;; esac; done
+    echo "== smoke test: $ROWS CpGs from chunk 1, no SLURM =="
+    run_stage tree
+    run_stage likelihood --chunk 1 --max-rows "$ROWS" --overwrite
+    run_stage prior      --chunks 1 --max-rows "$ROWS"
+    run_stage markers    --chunk 1 --overwrite
+    run_stage signature
+    # A global CpG id is a .beta row number, so a signature built from the first
+    # N CpGs of chunk 1 can be applied to a real sample straight away.
+    [[ -n "$BETA" ]] && run_stage deconvolve --beta "$BETA"
+    echo "== smoke test complete =="
+    ;;
+
+  demo)
+    # Generate a miniature dataset and run the whole pipeline on it, echoing each
+    # command so the sequence is the one to copy for real data.
+    OUT=""
+    while [[ $# -gt 0 ]]; do case "$1" in
+      --out) OUT="$2"; shift 2;;
+      *) shift;; esac; done
+    [[ -z "$OUT" ]] && OUT="${TMPDIR:-/tmp}/cftreble-demo-$$"
+    echo "== 1. write a miniature reference dataset =="
+    echo "\$ cftreble example --out $OUT"
+    Rscript "$CFT_HOME/scripts/stage_example.R" --out "$OUT" >/dev/null || exit 1
+    CONFIG="$OUT/example.yaml"
+    echo "  wrote $OUT (reference panel, tree, priors, one plasma sample)"
+    echo
+    echo "== 2. run the pipeline, one stage at a time =="
+    # The per-chunk stages are the ones `submit` turns into SLURM job arrays;
+    # here the two chunks of the example dataset just run one after the other.
+    for step in "check" "tree" \
+                "likelihood --chunk 1" "likelihood --chunk 2" "prior" \
+                "markers --chunk 1" "markers --chunk 2" "signature" \
+                "subject --chunk 1" "subject --chunk 2"; do
+      echo "\$ cftreble --config $OUT/example.yaml $step"
+      # shellcheck disable=SC2086
+      run_stage $step >/dev/null || { echo "  stage failed: $step"; exit 1; }
+    done
+    echo "\$ cftreble --config $OUT/example.yaml deconvolve --beta $OUT/reference/plasma_example.beta"
+    run_stage deconvolve --beta "$OUT/reference/plasma_example.beta" >/dev/null || exit 1
+    echo
+    echo "== 3. what came out, against the proportions it was mixed at =="
+    Rscript "$CFT_HOME/scripts/demo_report.R" --out "$OUT" || exit 1
+    echo
+    echo "Everything is under $OUT; $OUT/example.yaml shows every setting."
+    ;;
+
+  selftest)
+    exec Rscript "$CFT_HOME/scripts/selftest.R" "$@" ;;
+
+  validate)
+    exec Rscript "$CFT_HOME/scripts/validate.R" "$@" ;;
+
+  status)
+    W=$(cfg "file.path(cfg\$work, cfg\$run_tag)")
+    NCH=$(cfg "length(unlist(cfg\$data\$chunks))")
+    # likelihood, markers and subject run as arrays and leave one file per
+    # chunk rather than a single manifest, so count those instead.
+    for s in tree likelihood prior markers signature subject deconvolve; do
+      case "$s" in
+        likelihood) pat="lik_c*_b*.rds";  per_chunk=1 ;;
+        markers)    pat="markers_c*.rds"; per_chunk=1 ;;
+        subject)    pat="subject_c*.rds"; per_chunk=1 ;;
+        *)          per_chunk=0 ;;
+      esac
+      if [[ $per_chunk -eq 1 ]]; then
+        if [[ -d "$W/$s" ]]; then
+          n=$(ls -1 "$W/$s"/$pat 2>/dev/null | sed -E 's/.*_c0*([0-9]+).*/\1/' | sort -u | wc -l | tr -d " ")
+          if [[ "$n" -ge "$NCH" ]]; then printf "  %-12s done (%s/%s chunks)\n" "$s" "$n" "$NCH"
+          elif [[ "$n" -gt 0 ]];    then printf "  %-12s %s/%s chunks\n" "$s" "$n" "$NCH"
+          else printf "  %-12s -\n" "$s"; fi
+        else printf "  %-12s -\n" "$s"; fi
+      elif [[ -f "$W/$s/manifest.json" ]]; then printf "  %-12s done\n" "$s"
+      elif [[ -d "$W/$s" ]]; then printf "  %-12s started\n" "$s"
+      else printf "  %-12s -\n" "$s"; fi
+    done
+    ;;
+
+  *) awk 'NR>1 { if (/^#/) { sub(/^# ?/, ""); print } else exit }' "$0"; exit 0 ;;
+esac

@@ -1,0 +1,190 @@
+# cfTREBLE configuration.  Every path below is a placeholder -- point them at
+# your own data.  `${key}` expands against the top-level scalars, so the two
+# roots are written once.  `cftreble example` writes a working set of inputs
+# and a matching config if you would rather start from one.
+#
+# The three things the pipeline needs are `tree`, `priors` and `data`; the rest
+# is tuning.  See README.md for the shape each one must have.
+# cf-TREBLE pipeline configuration
+# Every path is either absolute or relative to `base`.
+
+base:      /path/to/your/cfTREBLE-run     # where output goes
+work:      work                 # all pipeline output lives here
+readonly:  /path/to/your/reference-data   # inputs, never written to
+
+run_tag:   v2.0                 # goes into every output path
+
+# ------------------------------------------------------ stage 1: tree
+tree:
+  # Either point at a prebuilt bundle ...
+  bundle:   null                # work/<tag>/tree/tree.rds once built
+  # ... or from a prebuilt children + parent + celltypes trio
+  from_lists:
+    children:   ${readonly}/tree_children.rds
+    parent:     ${readonly}/tree_parent.rds
+    celltypes:  ${readonly}/sample_list.rds
+  # ... or straight from the reference counts (`tree --from ref`): pool each cell
+  # type's methylation over a sample of CpGs and cluster those profiles.  Needs
+  # no external file and cannot disagree with sample_list.
+  from_reference:
+    chunks:    [1, 8, 15, 22, 29]   # spread over the genome, not one region
+    n_cpg:     20000                # sampled per chunk
+    min_depth: 10                   # every cell type must reach this
+    min_sd:    0.05                 # the CpG must vary across cell types
+    dist:      euclidean
+    linkage:   ward.D2
+    seed:      1
+  # ... or from an external bed (`tree --from bed`).  Its columns must match
+  # sample_list; a bed written for a different sample naming will not work.
+  from_bed:
+    bed:        ${readonly}/blocks_bed.rds
+    knn_k:      5
+    dist:       euclidean
+    linkage:    ward.D2
+
+# ---------------------------------------------------------------- priors
+priors:
+  mu:     ${readonly}/mu_prior.rds      # 3-component normal mixture: $mu $sigma $lambda
+  sigma:  ${readonly}/sigma_prior.rds   # $grid + $pi
+  # indices of sigma$grid that form the truncated prior; `auto` = grid < 0.5
+  sigma_truncate: auto
+  gh_points: 5
+
+# ---------------------------------------------------------------- input data
+data:
+  sample_list: ${readonly}/sample_list.rds
+  # CpG-block chunks of the reference count matrices (rows = CpG, cols = sample)
+  m_chunks:    ${readonly}/chunks/M_%d.rds
+  n_chunks:    ${readonly}/chunks/N_%d.rds
+  # The chunks to process, and the number of CpGs in each.  Chunk k covers rows
+  # (k-1)*chunk_stride + 1 .. k*chunk_stride of the genome-wide CpG list; the
+  # last chunk may be shorter.  Those row numbers are the CpG's global id, so
+  # they must be the row numbers of the .beta files you will deconvolve.
+  # Indexing is by row number in the genome-wide hg38 CpG list used by wgbs_tools
+  # (https://github.com/nloyfer/wgbs_tools).  The values below describe the
+  # panel this was developed on: chr1 to
+  # chr22 only, no chrX/chrY/chrM, which is 27,852,739 CpGs -- 31 chunks of
+  # 900,000, the last one short.  Including the sex chromosomes gives a
+  # different list, and every index past the first extra CpG shifts.
+  chunks:      [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
+  chunk_stride: 900000
+
+# ------------------------------------------------ stage 2: likelihood
+likelihood:
+  batch_size: 65000     # rows per in-memory batch
+  block_size: 1250      # capped at ceil(rows/ncores) so no core idles
+  ncores:     26        # must match the sbatch allocation
+  # A depth pre-filter would skip CpGs that marker selection rejects anyway
+  # (gate = `markers.min_read_depth`, read from that key so the two cannot
+  # drift).  It is OFF because stage `prior` estimates the partition mixture
+  # over EVERY CpG -- pi.t has 93 components and the rare ones matter, so the
+  # likelihood has to exist for all of them.  Turning this on saves ~35% of the
+  # likelihood stage but makes the prior describe deep CpGs only.
+  prefilter: false
+  em_sample_per_chunk: 0
+
+# ----------------------------------------------------- stage 3: prior
+prior_em:
+  tol:      1.0e-6
+  max_iter: 500
+  # Chunks are accumulated one at a time, so the full 83 GB of likelihood is
+  # never resident.  Set cache: true to keep them in memory instead -- much
+  # faster per iteration, but needs ~2.7 GB per 900k-row chunk.
+  cache: false
+
+# --------------------------------------------------- stage 4: markers
+markers:
+  lowest_p:          0.90
+  min_read_depth:    10    # mean read depth over all reference samples
+  min_rel_distance:  1.64
+  min_abs_distance:  0.30    # one-vs-rest markers
+  min_abs_distance_T0: 0.40  # class (T0) markers
+  min_IQR_target:    0.15
+  min_IQR_offtarget: 0.12
+  alpha_cap:         150000
+  slack:             5      # num = n_leaf - |leaf(node)| - slack
+
+  # ---- semi-specific markers --------------------------------------------------
+  # gate_requires_sibling_block
+  #   false  gate = P(j1 forms its own block).  Its parent must split for that,
+  #          so the gate already carries P(j1 and its sibling differ) >= lowest_p:
+  #          a product of terms in [0,1] above the threshold has every term above it.
+  #   true   also requires the sibling to be a coherent block of its own.
+  gate_requires_sibling_block: false
+  #
+  # comparison
+  #   target_vs_rest  score j1 against every other cell type
+  #   pair            score j1 only against cell types outside its own group,
+  #                   with the sibling counted / exempt / excluded below
+  comparison:            target_vs_rest
+  sibling_in_comparison: counted     # counted | exempt | excluded  (pair mode only)
+  # ---- sibling-contrast markers (a separate scan, off by default) -------------
+  # Distinct from `comparison: pair` above: that changes who the rule above
+  # scores against while keeping its posterior gate.  This is a scan of its own.
+  #
+  # The rule above asks whether a node separates from the rest of the tree, so a
+  # CpG that tells 34 from 35 arrives only as a by-product of each separating on
+  # its own.  This asks it directly -- do the two children of an internal node
+  # separate from each other? -- and records the hit against both, so such a CpG
+  # reports target 34;35.
+  #
+  # Read what the default form actually tests: a standardised distance between
+  # the two sides, an absolute effect size, and within-group tightness.  That is
+  # a contrast, not a posterior probability, so switching it on means the model's
+  # semi-specific probability no longer describes what was selected -- on one real
+  # batch only 29% of the rows it added reached P(the two sides are distinct
+  # blocks) >= 0.9.  Use `background: joint_p` to require that probability.
+  #
+  # It only ADDS markers, but it adds many: on that batch the semi count went
+  # from 3,178 to 35,847.  `background` says what must hold of the cell types
+  # outside the two being compared:
+  #   iqr      most of them individually tight: at least |rest| - slack of them
+  #            below min_IQR_offtarget
+  #   joint_p  P(the two sides are resolved as distinct blocks) >= lowest_p
+  #   span     they span at most max_bg_span in posterior methylation
+  #   both     joint_p and span together
+  #   none     no requirement; expect noise
+  sibling_contrast:
+    enabled:     false
+    background:  iqr
+    max_bg_span: 0.25
+
+  # Cap on how many markers any one target may contribute, applied in stage
+  # `signature` once the chunks are merged.  0 disables.  Within a target the
+  # markers are ranked by their cross-cell-type median IQR, smallest first, so
+  # the ones kept are those whose methylation varies least within a cell type;
+  # ties go to the lower CpG index, so the choice is reproducible.
+  max_per_celltype:      15000   # per target, among celltype and class markers
+  max_per_node:          15000   # per target, among semi markers
+  # Cell types held to `strict_rel_distance` instead of `min_rel_distance`.
+  strict_celltypes:      []
+  strict_rel_distance:   1.96
+  # leaves with <= this many samples also get the strict treatment
+  strict_max_samples:    2
+  subject_specific:      true
+
+# --------------------------------------------------- stage 6: subject
+subject:
+  # Fraction of the partition-posterior weight to keep per CpG.  Every p_Ind
+  # value is a probability, so the error is bounded by (1 - this).  1.0 turns
+  # pruning off and computes every node.
+  weight_coverage: 0.9999
+
+# ------------------------------------------------ stage 7: deconvolve
+deconvolve:
+  # Rows in a .beta file.  Normally left null: the count is derived from the
+  # file size (2 bytes per CpG).  Set it to assert a specific value instead.
+  beta_n_cpg: null
+  # Sample columns to leave out of the deconvolution reference, 1-based into
+  # unlist(sample_list).  The indices below are an example of excluding one
+  # contiguous block of samples; set it for your own panel, or [] for none.
+  drop_sample_cols: [78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88]
+
+# ---------------------------------------------------------------- slurm
+slurm:
+  account:   YOUR_ALLOCATION
+  partition: RM-shared
+  ntasks:    26        # ~2 GB/core on RM-shared; also sets OMP_NUM_THREADS=1
+  # The stage is resumable per batch, so a job that hits the wall can simply be
+  # resubmitted.
+  time:      "48:00:00"

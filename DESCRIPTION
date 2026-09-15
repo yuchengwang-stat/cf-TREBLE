@@ -1,0 +1,31 @@
+Package: cfTREBLE
+Type: Package
+Title: Tree-Based Bayesian Cell-Type Deconvolution of Cell-Free DNA Methylation
+Version: 1.0.0
+Authors@R: person("Yucheng", "Wang", email = "ychwang0331@gmail.com", role = c("aut", "cre"))
+Description: A complete, resumable pipeline for cf-TREBLE: hierarchical
+    cell-type tree construction, per-node marginal likelihoods over whole-genome
+    bisulfite reference panels, EM for the Bernoulli and categorical priors on
+    the tree, marker CpG selection, subject-specific signature estimation, and
+    deconvolution of cell-free DNA methylation samples. Designed to run as a
+    SLURM job array on a cluster, driven by a single configuration file.
+URL: https://github.com/yuchengwang-stat/cfTREBLE
+BugReports: https://github.com/yuchengwang-stat/cfTREBLE/issues
+License: file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports:
+    data.table,
+    parallel,
+    stats,
+    utils,
+    pbv,
+    pracma,
+    RhpcBLASctl,
+    mixsqp,
+    yaml,
+    jsonlite
+Suggests:
+    impute
+SystemRequirements: SLURM (optional, for the cluster driver in inst/slurm)
+RoxygenNote: 7.3.3

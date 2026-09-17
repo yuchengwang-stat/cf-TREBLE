@@ -355,6 +355,15 @@ Every threshold used in selection is a setting in the configuration file rather
 than a constant in the code. The shipped values are defaults; a different panel,
 sequencing depth or tree will want different ones.
 
+## Legacy C++ sources
+
+`inst/legacy-cpp/` holds earlier C++ implementations from the development of the
+method: `fragment.cpp`, which computes read-level likelihoods without collapsing
+reads to per-CpG counts, and `our_celfie_rcpp.cpp`, an Armadillo rewrite of the
+CelFiE EM. Nothing in the package calls them and they are not compiled at
+install time; see the README in that directory for how to build them on their
+own.
+
 ## License
 
 Not yet chosen -- see `LICENSE`. Patent matters relating to the method are still

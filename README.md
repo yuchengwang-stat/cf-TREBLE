@@ -355,14 +355,21 @@ Every threshold used in selection is a setting in the configuration file rather
 than a constant in the code. The shipped values are defaults; a different panel,
 sequencing depth or tree will want different ones.
 
-## Legacy C++ sources
+## Earlier implementations
 
-`inst/legacy-cpp/` holds earlier C++ implementations from the development of the
-method: `fragment.cpp`, which computes read-level likelihoods without collapsing
-reads to per-CpG counts, and `our_celfie_rcpp.cpp`, an Armadillo rewrite of the
-CelFiE EM. Nothing in the package calls them and they are not compiled at
-install time; see the README in that directory for how to build them on their
-own.
+Two directories under `inst/` keep the code the method was developed with. The
+package neither loads nor compiles either of them; each has a README of its own.
+
+`inst/legacy-R/` is the `R/` directory of the first implementation, verbatim.
+Four of its ten files were carried into the package unchanged and only renamed;
+the other six were reworked into `R/tree.R`, `R/likelihood.R`, `R/prior_em.R`,
+`R/markers.R` and `R/deconvolve.R`. Its README gives the file-by-file mapping.
+
+`inst/legacy-cpp/` holds the C++: `fragment.cpp`, which computes read-level
+likelihoods without collapsing reads to per-CpG counts, and
+`our_celfie_rcpp.cpp`, an Armadillo rewrite of the CelFiE EM. They are not in
+`src/` because they need `RcppArmadillo`, `pbv` and `BH`, which the package does
+not depend on; their README shows how to compile them on their own.
 
 ## License
 

@@ -181,13 +181,14 @@ tree needs no change downstream.
 
 ## Marker types
 
-Every marker is exactly one of three kinds, reported in the `kind` column.
+Every marker is exactly one of four kinds, reported in the `kind` column.
 
 | kind | meaning |
 |---|---|
 | `celltype` | one cell type against all the others |
 | `class` | one internal node -- a group of cell types -- against all the others |
-| `semi` | neither: the CpG splits the tree into blocks, without any single block standing against everything else |
+| `semi_pair` | a node and its sibling are each resolved as their own block; the other cell types need not form one |
+| `semi_single` | a node is resolved as its own block; its sibling and the other cell types need not form one |
 
 The `target` column names what the marker is a marker *for*: a cell type by
 name, an internal node as `node<k>`.
@@ -199,7 +200,7 @@ them separated by `;`, with `n_target` counting them.
 index   target                  kind      n_target
 1234    CellType03              celltype  1
 5678    node70                  class     1
-8116    CellType34;CellType35   semi      2
+8116    CellType34;CellType35   semi_pair 2
 ```
 
 `celltype` and `class` markers always have `n_target` 1, since the one-vs-rest
@@ -329,6 +330,7 @@ Rscript inst/tests/test_blend.R            # cf_BLEND recovers a known mixture
 Rscript inst/tests/test_deconvolve.R       # deconvolution against an external signature
 Rscript inst/tests/test_submit.R           # submit builds the right SLURM chain
 Rscript inst/tests/test_sibling_contrast.R # sibling_contrast: inert off, additive on
+Rscript inst/tests/test_semi_pair.R        # semi_pair labels match the two-block probability
 ```
 
 `validate` plants methylation truth on the tree so all three kinds of marker

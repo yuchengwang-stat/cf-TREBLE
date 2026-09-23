@@ -270,13 +270,23 @@ select_markers <- function(tree, cfg_m, ll_full, ll_trunc, mu_full, sigma_full,
   sig <- sig[!duplicated(sig[, c("idx", "node", "onevsrest")]), , drop = FALSE]
   sig <- sig[order(sig$idx), , drop = FALSE]
 
+  sig$semi_pair <- NA
+  s <- which(sig$onevsrest == 0L)
+  if (length(s)) {
+    sib <- vapply(sig$node[s], function(v)
+      as.integer(setdiff(tree$children[[tree$parent[v]]], v)[1]), 0L)
+    sig$semi_pair[s] <- p2[cbind(sig$idx[s], sig$node[s])] *
+                        pa[[1]][cbind(sig$idx[s], sib)] >= cfg_m$lowest_p
+  }
+
   mu_cols <- lp$mu[sig$idx, , drop = FALSE]
   sd_cols <- lp$sigma[sig$idx, , drop = FALSE]
   colnames(mu_cols) <- paste0("mu_",    tree$celltypes)
   colnames(sd_cols) <- paste0("sigma_", tree$celltypes)
   out <- cbind(data.frame(index = cpg_index[sig$idx], local_idx = sig$idx,
                           celltype = sig$celltype, node = sig$node,
-                          onevsrest = sig$onevsrest, score = sig$score,
+                          onevsrest = sig$onevsrest, semi_pair = sig$semi_pair,
+                          score = sig$score,
                           median_iqr = median_iqr[sig$idx],
                           stringsAsFactors = FALSE),
                mu_cols, sd_cols)
@@ -285,7 +295,9 @@ select_markers <- function(tree, cfg_m, ll_full, ll_trunc, mu_full, sigma_full,
   log_msg("  markers: ", nrow(out), " rows over ", length(unique(out$index)),
           " CpGs (celltype ", sum(out$onevsrest == 1L & is_leaf),
           ", class ", sum(out$onevsrest == 1L & !is_leaf),
-          ", semi ", sum(out$onevsrest == 0L), "); ", nmulti,
+          ", semi_pair ", sum(out$onevsrest == 0L & out$semi_pair %in% TRUE),
+          ", semi_single ", sum(out$onevsrest == 0L & out$semi_pair %in% FALSE),
+          "); ", nmulti,
           " CpGs resolve more than one block")
   out
 }

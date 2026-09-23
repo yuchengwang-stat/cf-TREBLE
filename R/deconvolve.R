@@ -78,7 +78,7 @@ signature_to_phi <- function(beta_mat, sample_list, drop_cols = integer(0)) {
 ## The table form needs no reference panel and no sample_list -- a signature from
 ## anywhere can be used, as long as its CpG indexing matches the .beta files.
 SIG_META <- c("index", "local_idx", "target", "kind", "n_target", "median_iqr",
-              "celltype", "node", "onevsrest", "score")
+              "celltype", "node", "onevsrest", "semi_pair", "score")
 read_signature <- function(path, celltypes = NULL) {
   if (!file.exists(path)) die("signature not found: ", path)
   if (grepl("[.]rds$", path, ignore.case = TRUE)) {

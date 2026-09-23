@@ -7,8 +7,8 @@ cfg <- load_config(file.path(a$out, "example.yaml"))
 S   <- readRDS(file.path(run_dir(cfg, "signature", FALSE), "signature.rds"))
 
 cat(sprintf("  signature   %d CpGs x %d cell types\n", nrow(S$table), ncol(S$beta)))
-for (k in c("celltype", "class", "semi"))
-  cat(sprintf("    %-9s %5d CpGs\n", k, sum(grepl(k, S$table$kind, fixed = TRUE))))
+for (k in c("celltype", "class", "semi_pair", "semi_single"))
+  cat(sprintf("    %-11s %5d CpGs\n", k, sum(grepl(k, S$table$kind, fixed = TRUE))))
 
 est <- unlist(read.csv(file.path(run_dir(cfg, "deconvolve", FALSE),
                                  "cell_fractions.csv"), row.names = 1))

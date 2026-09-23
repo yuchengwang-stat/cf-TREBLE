@@ -61,12 +61,14 @@ label_of <- function(nd)
   ifelse(nd <= tree$n_leaf, tree$celltypes[nd], paste0("node", nd))
 targets <- vapply(by_cpg, function(r)
   paste(label_of(sig$node[r]), collapse = ";"), "")
-## Three kinds, and every marker is exactly one of them:
-##   celltype  one cell type (a leaf) against all the others
-##   class     one internal node against all the others
-##   semi      the rest -- the CpG splits the tree into blocks without any one
-##             of them standing against everything else
-kind_of <- ifelse(sig$onevsrest == 0L, "semi",
+## Four kinds, and every marker is exactly one of them:
+##   celltype     one cell type (a leaf) against all the others
+##   class        one internal node against all the others
+##   semi_pair    a node and its sibling are each resolved as a block
+##   semi_single  a node is resolved as a block; its sibling need not be
+sp <- if (is.null(sig$semi_pair)) rep(NA, nrow(sig)) else sig$semi_pair
+kind_of <- ifelse(sig$onevsrest == 0L,
+                  ifelse(is.na(sp), "semi", ifelse(sp, "semi_pair", "semi_single")),
                   ifelse(sig$node <= tree$n_leaf, "celltype", "class"))
 ## A CpG can be more than one kind; listing the same kind twice says nothing, so
 ## only distinct kinds are kept.
@@ -76,6 +78,7 @@ wide$target   <- unname(targets)
 wide$kind     <- unname(kinds)
 wide$n_target <- lengths(by_cpg)
 wide$celltype <- NULL; wide$node <- NULL; wide$onevsrest <- NULL; wide$score <- NULL
+wide$semi_pair <- NULL
 log_msg(nrow(wide), " CpGs; ", sum(wide$n_target > 1L), " resolve more than one block")
 
 beta <- signature_beta(wide, tree$celltypes)
@@ -84,8 +87,8 @@ meta <- wide[, c("index", "target", "kind", "n_target")]
 ## A one-vs-rest marker has a single target; a semi one can have several, so the
 ## two are written to separate files as well as to the combined one.
 is_ovr <- meta$kind %in% c("celltype", "class")
-for (k in c("celltype", "class", "semi"))
-  cat(sprintf("  %-9s %6d CpGs\n", k, sum(grepl(k, meta$kind, fixed = TRUE))))
+for (k in c("celltype", "class", "semi", "semi_pair", "semi_single"))
+  cat(sprintf("  %-11s %6d CpGs\n", k, sum(grepl(k, meta$kind, fixed = TRUE))))
 
 save_rds(list(table = wide, long = sig, beta = beta, celltypes = tree$celltypes,
               caps = c(celltype_class = cap_ovr, semi = cap_node),
@@ -107,6 +110,8 @@ write_manifest(dir, "signature",
                n_celltype = sum(grepl("celltype", wide$kind, fixed = TRUE)),
                n_class    = sum(grepl("class", wide$kind, fixed = TRUE)),
                n_semi     = sum(grepl("semi", wide$kind, fixed = TRUE)),
+               n_semi_pair   = sum(grepl("semi_pair", wide$kind, fixed = TRUE)),
+               n_semi_single = sum(grepl("semi_single", wide$kind, fixed = TRUE)),
                n_multi_target = sum(wide$n_target > 1L),
                caps = list(celltype_class = cap_ovr, semi = cap_node),
                n_scanned = sum(vapply(parts, `[[`, 0L, "n_scanned")),

@@ -98,7 +98,7 @@ markers:
   min_read_depth:    10    # mean read depth over all reference samples
   min_rel_distance:  1.64
   min_abs_distance:  0.30    # one-vs-rest markers
-  min_abs_distance_T0: 0.40  # class (T0) markers
+  min_abs_distance_T0: 0.30  # semi-specific markers
   min_IQR_target:    0.15
   min_IQR_offtarget: 0.12
   alpha_cap:         150000

@@ -176,8 +176,8 @@ n_leaf     n_node    n_col
 `layer`, the complement columns and `n_col` are derived from `children`, not
 configured. Complements carrying no information are dropped: the root's
 complement is empty, and the root's two children are each other's complement. A
-48-leaf tree gives 95 nodes and 187 likelihood columns. Swapping in a different
-tree needs no change downstream.
+47-leaf tree used in the paper gives 93 nodes and 183 likelihood columns.
+Swapping in a different tree needs no change downstream.
 
 ## Marker types
 
@@ -255,9 +255,11 @@ noise around a common truth, it is slightly worse (RMSE 0.018 against 0.016).
 
 ### Using a signature built elsewhere
 
-No reference data ships with this package, so there is no signature to hand out.
-Deconvolution does not need one from this pipeline: `--signature` also accepts a
-plain table, and nothing else about the reference panel is required.
+No reference data ships with this package. The subject-specific signature from
+the paper is attached to the v1.0.0 release, and `reproduce/deconvolution_demo.R`
+shows how to deconvolve with it. Any other signature can be used as well:
+`--signature` also accepts a plain table, and nothing else about the reference
+panel is required.
 
 The table needs an `index` column giving each CpG's row number in the `.beta`
 files you are deconvolving, and one column per cell type holding that cell

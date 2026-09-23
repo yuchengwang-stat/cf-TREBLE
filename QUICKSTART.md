@@ -38,10 +38,10 @@ true composition is stored next to it, so you can see the answer come back:
 
 ```
   cell type         truth      est
-  CellType01       0.5000   0.4858
-  CellType02       0.2000   0.2044
+  CellType01       0.5000   0.4840
+  CellType02       0.2000   0.2074
 
-  RMSE 0.0161   Pearson 0.994
+  RMSE 0.0160   Pearson 0.995
 ```
 
 ## 1. Install
@@ -171,7 +171,7 @@ the first `n_leaf` nodes still "works" and quietly produces a wrong signature.
 ```
 
 ```
-tree: 48 leaves, 95 nodes, 187 likelihood columns, 8 layers
+tree: 47 leaves, 93 nodes, 183 likelihood columns, 8 layers
 ```
 
 Seconds. `layer`, the informative complement set and `n_col` are all derived

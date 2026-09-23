@@ -6,8 +6,10 @@ Scripts used for the paper, kept apart from the package: neither
 ## Deconvolution demo
 
 `deconvolution_demo.R` deconvolves an example cfDNA sample with the published
-subject-specific signature (about 630,000 marker CpGs, 46 cell types, 196
-reference samples) using `cf_BLEND`. From the repository root:
+subject-specific signature (628,220 marker CpGs) using `cf_BLEND`. The signature
+covers 46 of the paper's 47 cell types and their 196 reference samples; the
+chorionic villus (CVS) samples are not publicly released, so CVS is omitted.
+From the repository root:
 
 ```bash
 Rscript reproduce/deconvolution_demo.R
@@ -45,7 +47,9 @@ The simulations mix fragments from held-out reference samples (Loyfer et al.,
    ```
 
    `test_samples.rds` is a list of length 48, one entry per cell type in tree
-   order, holding the name of the held-out sample or `NULL`.
+   order, holding the name of the held-out sample or `NULL`. It lists the 48
+   reference cell types before monocytes and macrophages are combined into the
+   single cell type used in the paper.
 
 2. `generate_beta.sh` merges the 14 fragment files of one replicate into a
    sorted `.pat` file, keeps a random half of its reads, and converts it to

@@ -77,7 +77,7 @@ writeLines(c(
   "  prefilter: false", "  em_sample_per_chunk: 0", "",
   "prior_em:", "  tol: 1.0e-6", "  max_iter: 300", "  cache: false", "",
   "markers:", "  lowest_p: 0.90", "  min_read_depth: 10", "  min_rel_distance: 1.64",
-  "  min_abs_distance: 0.30", "  min_abs_distance_T0: 0.40",
+  "  min_abs_distance: 0.30", "  min_abs_distance_T0: 0.30",
   "  min_IQR_target: 0.15", "  min_IQR_offtarget: 0.12", "  alpha_cap: 150000",
   "  slack: 5", "  max_per_celltype: 2000", "  max_per_node: 2000",
   "  strict_celltypes: []", "  strict_rel_distance: 1.96",

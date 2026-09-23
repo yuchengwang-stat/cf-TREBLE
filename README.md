@@ -340,12 +340,20 @@ marker precision and recall against what it planted alongside the deconvolution
 error. It exercises the implementation under the model's own assumptions and
 says nothing about real WGBS artefacts.
 
+## Reproducing the paper
+
+`reproduce/` contains the deconvolution demo from the paper, which uses the
+published signature, and the scripts that generate the simulated cfDNA mixtures.
+See `reproduce/README.md`.
+
 ## Data availability
 
-The reference panel behind the published signature combines sources that are not
-all redistributable, so no reference data is included here and there is no script
-that regenerates that signature. `cftreble demo` and `cftreble validate` run the
-whole pipeline on data they generate themselves.
+The published subject-specific signature is attached to the
+[v1.0.0 release](https://github.com/yuchengwang-stat/cf-TREBLE/releases/tag/v1.0.0).
+The reference panel behind it combines sources that are not all redistributable,
+so no reference data is included here and there is no script that regenerates
+the signature. `cftreble demo` and `cftreble validate` run the whole pipeline on
+data they generate themselves.
 
 Every threshold used in selection is a setting in the configuration file rather
 than a constant in the code. The shipped values are defaults; a different panel,

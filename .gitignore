@@ -7,3 +7,6 @@ work_local/
 *.tar.gz
 *.Rcheck/
 .DS_Store
+reproduce/data/*.gz
+reproduce/data/*.beta
+reproduce/output/

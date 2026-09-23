@@ -70,9 +70,7 @@ sp <- if (is.null(sig$semi_pair)) rep(NA, nrow(sig)) else sig$semi_pair
 kind_of <- ifelse(sig$onevsrest == 0L,
                   ifelse(is.na(sp), "semi", ifelse(sp, "semi_pair", "semi_single")),
                   ifelse(sig$node <= tree$n_leaf, "celltype", "class"))
-## A CpG can be more than one kind; listing the same kind twice says nothing, so
-## only distinct kinds are kept.
-kinds <- vapply(by_cpg, function(r) paste(unique(kind_of[r]), collapse = ";"), "")
+kinds <- vapply(by_cpg, function(r) paste(kind_of[r], collapse = ";"), "")
 wide <- sig[first, , drop = FALSE]
 wide$target   <- unname(targets)
 wide$kind     <- unname(kinds)

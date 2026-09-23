@@ -194,13 +194,14 @@ The `target` column names what the marker is a marker *for*: a cell type by
 name, an internal node as `node<k>`.
 
 The same CpG can be a marker for more than one target, and `target` then lists
-them separated by `;`, with `n_target` counting them.
+them separated by `;`, with `n_target` counting them. `kind` lists the kind of
+each target in the same order.
 
 ```
-index   target                  kind      n_target
-1234    CellType03              celltype  1
-5678    node70                  class     1
-8116    CellType34;CellType35   semi_pair 2
+index   target                  kind                  n_target
+1234    CellType03              celltype              1
+5678    node70                  class                 1
+8116    CellType34;CellType35   semi_pair;semi_pair   2
 ```
 
 `celltype` and `class` markers always have `n_target` 1, since the one-vs-rest

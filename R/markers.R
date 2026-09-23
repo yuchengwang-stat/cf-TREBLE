@@ -90,33 +90,13 @@ select_onevrest <- function(tree, m, p.t, mu_full, sigma_full, IQR, p_post, Nmea
 }
 
 ## ---- semi-specific markers ------------------------------------------------------
-## A CpG is a semi-specific marker for node j1 when the tree partition resolves
-## j1 as its own block:
-##
-##   P(j1 is a block) = prod over j1's ancestors of (1 - p[a]) * p[j1] * P(T0)
-##
-## Every factor lies in [0, 1], so a product above the threshold has every factor
-## above it -- including 1 - p[parent], the posterior that the parent splits and
-## therefore that j1 and its sibling j2 fall in different blocks.
-##
-## Two settings control the strictness:
-##
-##   gate_requires_sibling_block
-##     FALSE  gate = P(j1 is a block)
-##     TRUE   gate = P(j1 is a block) * P(j2 is coherent), additionally requiring
-##            the sibling to form a block of its own
-##
-##   comparison
-##     "target_vs_rest"  score j1 against every other cell type
-##     "pair"            score j1 only against cell types outside its own group,
-##                       the sibling counted, exempted or excluded
 select_semi <- function(tree, m, p.t, p2, p_split, mu_post, sigma_post, IQR, Nmean, p_post) {
   n_leaf <- tree$n_leaf
   strict_ct <- as.integer(unlist(m$strict_celltypes))
   gate_thr  <- m$lowest_p
   pair_mode <- identical(m$comparison %||% "target_vs_rest", "pair")
   want_sib  <- isTRUE(m$gate_requires_sibling_block)
-  sib_mode  <- m$sibling_in_comparison %||% "counted"   # counted | exempt | excluded
+  sib_mode  <- m$sibling_in_comparison %||% "counted"
   rel_thr0  <- m$min_rel_distance
   use_rel   <- !is.null(rel_thr0) && !is.na(rel_thr0)
   eff       <- m$min_abs_distance_T0
@@ -143,7 +123,6 @@ select_semi <- function(tree, m, p.t, p2, p_split, mu_post, sigma_post, IQR, Nme
     idx <- base[!is.na(g[base]) & g[base] >= gate_thr]
     if (!length(idx)) next
 
-    ## which cell types j1 is compared against, and how many may fail
     sb <- sibling_of(node)
     sib_leaves <- if (length(sb)) tree$leaf[[sb[1]]] else integer(0)
     cmp <- setdiff(seq_len(n_leaf), tgt)
@@ -163,8 +142,6 @@ select_semi <- function(tree, m, p.t, p2, p_split, mu_post, sigma_post, IQR, Nme
     mt <- rowMeans(mu[, tgt, drop = FALSE]); st <- rowMeans(sg[, tgt, drop = FALSE])
     pt <- rowMeans(px[, tgt, drop = FALSE])
 
-    ## target-vs-rest scores every cell type including j1's own, which always
-    ## fail and are paid for out of `need`; pair mode scores only `cmp`.
     keep <- rep(TRUE, length(idx))
     if (use_rel) {
       dd <- abs((if (pair_mode) mu[, cmp, drop = FALSE] else mu) - mt) /
@@ -188,44 +165,7 @@ select_semi <- function(tree, m, p.t, p2, p_split, mu_post, sigma_post, IQR, Nme
   if (length(out)) do.call(rbind, out) else NULL
 }
 
-## ---- sibling-contrast markers, off by default ------------------------------------
-##
-## Named apart from `comparison: pair` above on purpose: that setting changes who
-## select_semi SCORES AGAINST while keeping its posterior gate, whereas this is a
-## separate scan with a gate of its own -- or, by default, with none.
-##
-## `select_semi` asks whether node j separates from the rest of the tree, so a CpG
-## that tells 34 from 35 only arrives as a by-product of each of them separating
-## on its own.  This asks the question directly: do the two children of an
-## internal node separate FROM EACH OTHER?
-##
-## Note what the test is made of.  Its default form is a CONTRAST -- a
-## standardised distance between the two sides, an absolute effect size, and
-## within-group tightness -- and carries no posterior gate at all.  It is
-## therefore not the rule the model's semi-specific probability defines, and
-## turning it on makes that probability stop describing what was selected:
-## measured on one real batch, only 29% of the rows it adds reach
-## P(the two sides are distinct blocks) >= 0.9, against 100% by construction
-## under `background: joint_p`.
-##
-## Asked alone the contrast fires on noise -- two groups can differ while the rest
-## of the tree is a mess -- so it is paired with a requirement that the background
-## be stable.  `sibling_contrast.background` chooses which requirement:
-##
-##   "iqr"      most of the remaining cell types are individually tight: at least
-##              |rest| - markers.slack of them below min_IQR_offtarget
-##   "joint_p"  P(the two sides are resolved as distinct blocks) >= lowest_p
-##   "span"     the remaining cell types span at most max_bg_span in posterior
-##              methylation
-##   "both"     joint_p and span together
-##   "none"     no requirement on the background; expect noise
-##
-## A hit is recorded against BOTH children, so a CpG separating 34 from 35 reports
-## `target` 34;35 rather than appearing once under one of them.
-##
-## This ADDS markers and never removes any, but it adds a great many: on that same
-## batch the semi count went from 3,178 to 35,847.  With `enabled` false it does
-## not run at all, and selection is exactly select_onevrest + select_semi.
+## ---- sibling-contrast markers -----------------------------------------------
 select_sibling_contrast <- function(tree, m, p, p.t, mu_post, sigma_post, IQR, Nmean, p_post) {
   pw <- m$sibling_contrast
   if (!isTRUE(pw$enabled)) return(NULL)
@@ -237,8 +177,6 @@ select_sibling_contrast <- function(tree, m, p, p.t, mu_post, sigma_post, IQR, N
   n      <- nrow(mu_post)
   slack  <- m$slack
 
-  ## P(no ancestor of j is a block, j itself is not a block, but both of its
-  ## children are) -- the probability that the two sides are resolved apart.
   anc_of <- function(x) { o <- integer(0)
     while (x != tree$n_node) { x <- tree$parent[x]; o <- c(o, x) }; o }
   pair_joint <- function(j) {
@@ -260,7 +198,6 @@ select_sibling_contrast <- function(tree, m, p, p.t, mu_post, sigma_post, IQR, N
     sA <- rowMean(sigma_post, A); sB <- rowMean(sigma_post, B)
     pA <- rowMean(p_post, A);     pB <- rowMean(p_post, B)
     rel <- abs(mA - mB) / sqrt(sA^2 + sB^2)
-    ## the two sides separate, and each is internally tight
     keep <- depth_ok & !is.na(rel) &
       rel >= m$min_rel_distance &
       abs(pA - pB) >= m$min_abs_distance &

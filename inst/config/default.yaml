@@ -105,45 +105,9 @@ markers:
   slack:             5      # num = n_leaf - |leaf(node)| - slack
 
   # ---- semi-specific markers --------------------------------------------------
-  # gate_requires_sibling_block
-  #   false  gate = P(j1 forms its own block).  Its parent must split for that,
-  #          so the gate already carries P(j1 and its sibling differ) >= lowest_p:
-  #          a product of terms in [0,1] above the threshold has every term above it.
-  #   true   also requires the sibling to be a coherent block of its own.
   gate_requires_sibling_block: false
-  #
-  # comparison
-  #   target_vs_rest  score j1 against every other cell type
-  #   pair            score j1 only against cell types outside its own group,
-  #                   with the sibling counted / exempt / excluded below
   comparison:            target_vs_rest
-  sibling_in_comparison: counted     # counted | exempt | excluded  (pair mode only)
-  # ---- sibling-contrast markers (a separate scan, off by default) -------------
-  # Distinct from `comparison: pair` above: that changes who the rule above
-  # scores against while keeping its posterior gate.  This is a scan of its own.
-  #
-  # The rule above asks whether a node separates from the rest of the tree, so a
-  # CpG that tells 34 from 35 arrives only as a by-product of each separating on
-  # its own.  This asks it directly -- do the two children of an internal node
-  # separate from each other? -- and records the hit against both, so such a CpG
-  # reports target 34;35.
-  #
-  # Read what the default form actually tests: a standardised distance between
-  # the two sides, an absolute effect size, and within-group tightness.  That is
-  # a contrast, not a posterior probability, so switching it on means the model's
-  # semi-specific probability no longer describes what was selected -- on one real
-  # batch only 29% of the rows it added reached P(the two sides are distinct
-  # blocks) >= 0.9.  Use `background: joint_p` to require that probability.
-  #
-  # It only ADDS markers, but it adds many: on that batch the semi count went
-  # from 3,178 to 35,847.  `background` says what must hold of the cell types
-  # outside the two being compared:
-  #   iqr      most of them individually tight: at least |rest| - slack of them
-  #            below min_IQR_offtarget
-  #   joint_p  P(the two sides are resolved as distinct blocks) >= lowest_p
-  #   span     they span at most max_bg_span in posterior methylation
-  #   both     joint_p and span together
-  #   none     no requirement; expect noise
+  sibling_in_comparison: counted
   sibling_contrast:
     enabled:     false
     background:  iqr

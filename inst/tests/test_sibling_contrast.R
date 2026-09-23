@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-## markers.sibling_contrast must be inert when off and purely additive when on.
 source(file.path(dirname(sub("^--file=", "", commandArgs(FALSE)[grep("^--file=", commandArgs(FALSE))][1])), "..", "scripts", "boot.R"))
 set.seed(5)
 
@@ -15,8 +14,6 @@ ll  <- vapply(tree$leaf_all, function(v) rowSums(leaf_ll[, v, drop = FALSE]), nu
 llt <- ll - abs(matrix(rnorm(n * tree$n_col, 0, 0.15), n, tree$n_col))
 fit <- estimate_tree_prior(tree, ll, llt, tol = 1e-8, max_iter = 120)
 
-## Per-node posterior mu/sigma.  Tight sigma and a wide spread of mu is what a
-## real marker looks like, and is what lets either scan fire at all.
 mu_full <- matrix(rnorm(n * tree$n_col, 0, 1.8), n, tree$n_col)
 sigma_full <- matrix(runif(n * tree$n_col, 0.05, 0.25), n, tree$n_col)
 Nmean <- rep(40, n)
@@ -43,10 +40,10 @@ for (bg in c("iqr", "joint_p", "span", "both", "none")) {
   cat(sprintf("  background %-8s %4d -> %4d rows   added %4d  lost %d   %s\n",
               bg, length(ko), length(kn), added, lost,
               if (lost == 0L && !anyDuplicated(kn)) "PASS" else "FAIL"))
-  stopifnot(lost == 0L, !anyDuplicated(kn))   # additive, and no (CpG,node,kind) twice
+  stopifnot(lost == 0L, !anyDuplicated(kn))
   any_added <- any_added || added > 0L
 }
-stopifnot(any_added)                          # it must actually do something
+stopifnot(any_added)
 
 mm <- m; mm$sibling_contrast$enabled <- TRUE; mm$sibling_contrast$background <- "nonsense"
 stopifnot(inherits(try(run(mm), silent = TRUE), "try-error"))

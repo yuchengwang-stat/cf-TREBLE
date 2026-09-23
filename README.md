@@ -193,12 +193,7 @@ The `target` column names what the marker is a marker *for*: a cell type by
 name, an internal node as `node<k>`.
 
 The same CpG can be a marker for more than one target, and `target` then lists
-them separated by `;`, with `n_target` counting them. Read that list as "this
-CpG is a marker for each of these", not as "this CpG tells these apart from each
-other". The targets are found independently, one node at a time, and mostly are
-not siblings -- on a 48-cell-type panel, 95% of the two-target CpGs had targets
-that were not siblings. A CpG can be informative about Monocyte and, separately,
-about Neutrophil, without saying anything about Monocyte versus Neutrophil.
+them separated by `;`, with `n_target` counting them.
 
 ```
 index   target                  kind      n_target
@@ -307,10 +302,8 @@ Notes on individual settings:
   may contribute, applied after the chunks are merged. Marker counts are very
   uneven across cell types, and without a cap two of them can hold most of the
   one-vs-rest markers.
-- `markers.sibling_contrast` is an additional, off-by-default scan that asks
-  whether the two children of an internal node separate from each other,
-  rather than letting that follow from each separating from the rest of the
-  tree. It only adds markers, and it adds many; `background` sets what must
+- `markers.sibling_contrast` is an additional, off-by-default scan that compares
+  the two children of each internal node directly; `background` sets what must
   hold of the remaining cell types.
 - `priors.sigma_truncate: auto` selects the grid points below 0.5.
 - `likelihood.ncores` should match `slurm.ntasks`. `block_size` is capped at

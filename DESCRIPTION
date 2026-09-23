@@ -9,8 +9,8 @@ Description: A complete, resumable pipeline for cf-TREBLE: hierarchical
     the tree, marker CpG selection, subject-specific signature estimation, and
     deconvolution of cell-free DNA methylation samples. Designed to run as a
     SLURM job array on a cluster, driven by a single configuration file.
-URL: https://github.com/yuchengwang-stat/cfTREBLE
-BugReports: https://github.com/yuchengwang-stat/cfTREBLE/issues
+URL: https://github.com/yuchengwang-stat/cf-TREBLE
+BugReports: https://github.com/yuchengwang-stat/cf-TREBLE/issues
 License: file LICENSE
 Encoding: UTF-8
 Depends: R (>= 4.1)

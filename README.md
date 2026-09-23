@@ -23,9 +23,9 @@ BiocManager::install("impute")   # optional, only for `tree --from bed`
 Then:
 
 ```r
-remotes::install_github("yuchengwang-stat/cfTREBLE")
+remotes::install_github("yuchengwang-stat/cf-TREBLE")
 # or, from a checkout:
-R CMD INSTALL cfTREBLE
+R CMD INSTALL cf-TREBLE
 ```
 
 The command-line driver ships inside the package:

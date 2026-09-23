@@ -47,14 +47,14 @@ true composition is stored next to it, so you can see the answer come back:
 ## 1. Install
 
 ```bash
-git clone https://github.com/yuchengwang-stat/cfTREBLE.git
-R CMD INSTALL --no-docs -l /path/to/your/Rlib cfTREBLE
+git clone https://github.com/yuchengwang-stat/cf-TREBLE.git
+R CMD INSTALL --no-docs -l /path/to/your/Rlib cf-TREBLE
 ```
 
 or, in R:
 
 ```r
-remotes::install_github("yuchengwang-stat/cfTREBLE")
+remotes::install_github("yuchengwang-stat/cf-TREBLE")
 ```
 
 On a cluster, point `R_LIBS_USER` at the library you installed into, in every

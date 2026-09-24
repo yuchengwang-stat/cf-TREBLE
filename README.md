@@ -334,6 +334,7 @@ Rscript inst/tests/test_deconvolve.R       # deconvolution against an external s
 Rscript inst/tests/test_submit.R           # submit builds the right SLURM chain
 Rscript inst/tests/test_sibling_contrast.R # sibling_contrast: inert off, additive on
 Rscript inst/tests/test_semi_pair.R        # semi_pair labels match the two-block probability
+Rscript inst/tests/test_strict_celltypes.R # strict thresholds apply only to the listed cell types
 ```
 
 `validate` plants methylation truth on the tree so all three kinds of marker

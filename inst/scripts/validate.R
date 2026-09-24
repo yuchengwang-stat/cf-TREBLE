@@ -76,7 +76,7 @@ writeLines(c(
   "  min_abs_distance: 0.30", "  min_abs_distance_T0: 0.30",
   "  min_IQR_target: 0.15", "  min_IQR_offtarget: 0.12", "  alpha_cap: 150000",
   "  slack: 5", "  strict_celltypes: []", "  strict_rel_distance: 1.96",
-  "  strict_max_samples: 0", "  subject_specific: false",
+  "  subject_specific: false",
   "deconvolve:", "  beta_n_cpg: null", "  drop_sample_cols: []",
   "slurm:", "  account: none", "  partition: RM-shared", "  ntasks: 1", "  time: \"01:00:00\""
 ), cfgfile)

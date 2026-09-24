@@ -95,7 +95,7 @@ prior_em:
 # --------------------------------------------------- stage 4: markers
 markers:
   lowest_p:          0.90
-  min_read_depth:    10    # mean read depth over all reference samples
+  min_read_depth:    15    # mean read depth over all reference samples
   min_rel_distance:  1.64
   min_abs_distance:  0.30    # one-vs-rest markers
   min_abs_distance_T0: 0.30  # semi-specific markers
@@ -120,11 +120,10 @@ markers:
   # ties go to the lower CpG index, so the choice is reproducible.
   max_per_celltype:      15000   # per target, among celltype and class markers
   max_per_node:          15000   # per target, among semi markers
-  # Cell types held to `strict_rel_distance` instead of `min_rel_distance`.
+  # Cell types, by name or leaf index, held to `strict_rel_distance` instead of
+  # `min_rel_distance`.
   strict_celltypes:      []
   strict_rel_distance:   1.96
-  # leaves with <= this many samples also get the strict treatment
-  strict_max_samples:    2
   subject_specific:      true
 
 # --------------------------------------------------- stage 6: subject

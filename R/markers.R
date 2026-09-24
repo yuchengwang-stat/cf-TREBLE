@@ -45,6 +45,21 @@ leaf_posteriors <- function(tree, mu_full, sigma_full, p2, p.t) {
   list(mu = mu_post, sigma = sigma_post)
 }
 
+## `strict_celltypes` names cell types by name or by leaf index
+strict_nodes <- function(tree, x) {
+  x <- unlist(x)
+  if (!length(x)) return(integer(0))
+  x <- as.character(x)
+  num <- grepl("^[0-9]+$", x)
+  k <- integer(length(x))
+  k[num]  <- as.integer(x[num])
+  k[!num] <- match(x[!num], tree$celltypes)
+  if (anyNA(k) || any(k < 1L | k > tree$n_leaf))
+    die("markers.strict_celltypes: not a cell type of this tree: ",
+        paste(x[is.na(k) | k < 1L | k > tree$n_leaf], collapse = ", "))
+  unique(k)
+}
+
 ## ---- one-vs-rest markers ------------------------------------------------------
 ## Vectorised over CpGs by grouping on the winning node.
 ##
@@ -53,8 +68,7 @@ leaf_posteriors <- function(tree, mu_full, sigma_full, p2, p.t) {
 select_onevrest <- function(tree, m, p.t, mu_full, sigma_full, IQR, p_post, Nmean) {
   n <- nrow(p.t)
   n_comp <- length(tree$comp_of)
-  strict_ct <- unique(c(as.integer(unlist(m$strict_celltypes)),
-                        which(tree$leaf_sizes <= m$strict_max_samples)))
+  strict_ct <- strict_nodes(tree, m$strict_celltypes)
   k  <- max.col(p.t, ties.method = "first") - 1L
   mx <- p.t[cbind(seq_len(n), k + 1L)]
   cand <- which(!is.na(mx) & k >= 1L & k <= n_comp &
@@ -92,7 +106,7 @@ select_onevrest <- function(tree, m, p.t, mu_full, sigma_full, IQR, p_post, Nmea
 ## ---- semi-specific markers ------------------------------------------------------
 select_semi <- function(tree, m, p.t, p2, p_split, mu_post, sigma_post, IQR, Nmean, p_post) {
   n_leaf <- tree$n_leaf
-  strict_ct <- as.integer(unlist(m$strict_celltypes))
+  strict_ct <- strict_nodes(tree, m$strict_celltypes)
   gate_thr  <- m$lowest_p
   pair_mode <- identical(m$comparison %||% "target_vs_rest", "pair")
   want_sib  <- isTRUE(m$gate_requires_sibling_block)
@@ -236,7 +250,6 @@ select_markers <- function(tree, cfg_m, ll_full, ll_trunc, mu_full, sigma_full,
   if (!is.null(cfg_m$pairwise))
     die("markers.pairwise was renamed markers.sibling_contrast -- rename it in ",
         "the config rather than leaving a key that is silently ignored")
-  tree$leaf_sizes <- lengths(tree$leaf)[seq_len(tree$n_leaf)]
   pa  <- calculate.p.gj(tree$children, pi.j, ll_full, tree$layer)
   p.t <- calculate.p.t(pi.t, pi.j, tree, ll_full, ll_trunc, pa[[2]])
   p2  <- node_joint_p(tree, pa[[1]]) * p.t[, 1]

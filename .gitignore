@@ -1,0 +1,12 @@
+work/
+work_local/
+*.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.tar.gz
+*.Rcheck/
+.DS_Store
+reproduce/data/*.gz
+reproduce/data/*.beta
+reproduce/output/

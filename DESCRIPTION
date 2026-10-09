@@ -1,0 +1,26 @@
+Package: cfTREBLE
+Type: Package
+Title: Tree-Based Bayesian Cell-Type Deconvolution of Cell-Free DNA Methylation
+Version: 1.0.0
+Authors@R: person("Yucheng", "Wang", email = "ychwang0331@gmail.com", role = c("aut", "cre"))
+Description: Tree-based Bayesian cell-type deconvolution of cell-free DNA methylation.
+URL: https://github.com/yuchengwang-stat/cf-TREBLE
+BugReports: https://github.com/yuchengwang-stat/cf-TREBLE/issues
+License: file LICENSE
+Encoding: UTF-8
+Depends: R (>= 4.1)
+Imports:
+    data.table,
+    parallel,
+    stats,
+    utils,
+    pbv,
+    pracma,
+    RhpcBLASctl,
+    mixsqp,
+    yaml,
+    jsonlite
+Suggests:
+    impute
+SystemRequirements: SLURM (optional)
+RoxygenNote: 7.3.3

@@ -1,0 +1,88 @@
+base:      /path/to/your/cfTREBLE-run
+work:      work
+readonly:  /path/to/your/reference-data
+
+run_tag:   v2.0
+
+tree:
+  bundle:   null
+  from_lists:
+    children:   ${readonly}/tree_children.rds
+    parent:     ${readonly}/tree_parent.rds
+    celltypes:  ${readonly}/sample_list.rds
+  from_reference:
+    chunks:    [1, 8, 15, 22, 29]
+    n_cpg:     20000
+    min_depth: 10
+    min_sd:    0.05
+    dist:      euclidean
+    linkage:   ward.D2
+    seed:      1
+  from_bed:
+    bed:        ${readonly}/blocks_bed.rds
+    knn_k:      5
+    dist:       euclidean
+    linkage:    ward.D2
+
+priors:
+  mu:     ${readonly}/mu_prior.rds
+  sigma:  ${readonly}/sigma_prior.rds
+  sigma_truncate: auto
+  gh_points: 5
+
+data:
+  sample_list: ${readonly}/sample_list.rds
+  m_chunks:    ${readonly}/chunks/M_%d.rds
+  n_chunks:    ${readonly}/chunks/N_%d.rds
+  chunks:      [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31]
+  chunk_stride: 900000
+
+likelihood:
+  batch_size: 65000
+  block_size: 1250
+  ncores:     26
+  prefilter: false
+  em_sample_per_chunk: 0
+
+prior_em:
+  tol:      1.0e-6
+  max_iter: 500
+  cache: false
+
+markers:
+  lowest_p:          0.90
+  min_read_depth:    15
+  min_rel_distance:  1.64
+  min_abs_distance:  0.30
+  min_abs_distance_T0: 0.30
+  min_IQR_target:    0.15
+  min_IQR_offtarget: 0.12
+  alpha_cap:         150000
+  slack:             5
+
+  gate_requires_sibling_block: false
+  comparison:            target_vs_rest
+  sibling_in_comparison: counted
+  sibling_contrast:
+    enabled:     false
+    background:  iqr
+    max_bg_span: 0.25
+
+  max_per_celltype:      15000
+  max_per_node:          15000
+  strict_celltypes:      []
+  strict_rel_distance:   1.96
+  subject_specific:      true
+
+subject:
+  weight_coverage: 0.9999
+
+deconvolve:
+  beta_n_cpg: null
+  drop_sample_cols: [78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88]
+
+slurm:
+  account:   YOUR_ALLOCATION
+  partition: RM-shared
+  ntasks:    26
+  time:      "48:00:00"
